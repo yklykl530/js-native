@@ -389,10 +389,13 @@ apiContainer
 `参数`
 
 - `{Object|Function}` mapAPI 调用描述对象名称的映射表或映射函数
+- `{Object}` [options] 配置参数
+- `{Boolean}` [options.withCanIUse] 是否添加canIUse方法, 默认为 false
 
 `返回`
 
-`{Object}` 生成的对象
+`{Object}` mappedObject 生成的对象
+`{Function}` [object.canIUse] 检测API是否可用的方法，添加withCanIUse配置后可用
 
 `示例`
 
@@ -417,6 +420,53 @@ mod.fetch('https://yourdomain.com/path', 'GET', data => {});
 // 通过 function map。mod2 对象上包含 request 方法，可直接调用
 let mod2 = apiContainer.map(name => name.slice(name.indexOf('.') + 1));
 mod2.request('https://yourdomain.com/path', 'GET', data => {});
+```
+##### mappedObject.canIUse
+
+`说明`
+
+map生成的对象上，类似微信小程序 wx.canIUse 风格的API可用性检查方法
+
+`参数`
+
+- `{String}` apiName API名称
+- `{String}` [argsName] 检查的参数类型，默认为 args，即检查入参，检查依据为接口描述文件。如果传入其他值，则会在接口描述文件中寻找对应的值定义，定义方式同 args。
+- `{String}` [paramName] 具体需检查的参数名
+- `{String}` [subParamName] 如果paramName对应参数是一个对象，则可以检测这个对象上的键是否可用
+
+`返回`
+
+`{Boolean}` 是否可用结果
+
+`示例`
+
+```js
+apis.add({
+    invoke: "method",
+    name: "ns.api",
+    method: "_ns.api",
+    args: [
+        {name: 'one', value: 'number'},
+        {name: 'twoObject', value: {
+            two: 'number'
+        }}
+    ],
+    success: [
+        {name: 'res', value: 'number'}
+    ]
+});
+_ns.api = (one, twoObject) => {
+    return one + twoObject.two;
+};
+let myApi = apis.map(null, {withCanIUse:true});
+myApi.ns.api(100, {two: 200}) // 300
+myApi.canIUse('ns.api') // true
+myApi.canIUse('ns.api', 'args', 'one') // true
+myApi.canIUse('ns.api', 'args', 'twoObject', 'two') // true
+myApi.canIUse('ns.api', 'success', 'res') // true
+myApi.canIUse('ns.apiNotExist') // false
+myApi.canIUse('ns.api', 'args', 'otherParams') // false
+myApi.canIUse('ns.api', 'args', 'twoObject', 'otherSubParams') // false
 ```
 
 #### setExternalDescriptionProps

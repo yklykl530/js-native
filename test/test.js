@@ -284,6 +284,65 @@ describe('APIContainer', () => {
         expect(value).to.be.equal(250);
     });
 
+    it('map api use withCanIUse option', () => {
+        apis.add({
+            invoke: "method",
+            name: "ns.apiMap9",
+            method: "tAPI.api10",
+            args: []
+        });
+        let myApi = apis.map(null, {withCanIUse:true});
+        expect(myApi.canIUse).to.be.a('function');
+        let myApiWithoutCanIUse = apis.map();
+        expect(myApiWithoutCanIUse.canIUse).to.be.a('undefined');
+    });
+
+    it('map object canIUse api', () => {
+        let value = 0;
+        apis.add({
+            invoke: "method",
+            name: "ns.apiMap10",
+            method: "tAPI.api10",
+            args: [
+                {name: 'one', value: 'number'},
+                {name: 'twoObject', value: {
+                    two: 'number'
+                }}
+            ],
+            success: [
+                {name: 'res', value: 'number'}
+            ]
+        });
+        tAPI.api10 = (one, twoObject) => {
+            value = one + twoObject.two;
+        };
+        let myApi = apis.map(null, {withCanIUse:true});
+        expect(myApi.canIUse('ns.apiMap10')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'one')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'twoObject', 'two')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'success', 'res')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiNotExist')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'otherMethod', 'twoObject', 'two')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'otherParams')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'twoObject', 'otherOptions')).to.be.equal(false);
+        myApi.ns.apiMap10(100, {two: 200});
+        expect(value).to.be.equal(300);
+    });
+
+    it('map api use withCanIUse error', () => {
+        expect(() => {
+            apis.add({
+                invoke: "method",
+                name: "canIUse",
+                method: "tAPI.api10",
+                args: [
+                    {name: 'one', value: 'number'}
+                ]
+            });
+            apis.map(null, {withCanIUse: true});
+        }).to.throw('canIUse has exist');
+    });
+
     it('no invoke property, throw Error', () => {
         apis.add({
             name: "api9",

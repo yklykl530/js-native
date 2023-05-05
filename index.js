@@ -617,6 +617,30 @@
         }
     }
 
+    function buildCanIUse(apiNameToApiMap) {
+        return function (apiName, argsName = 'args', paramName = null, subParamName = null) {
+            var api = apiNameToApiMap[apiName];
+            if (!api || !api.invoke) {
+                return false;
+            }
+            if (argsName && paramName) {
+                var methods = api[argsName]
+                if (!Array.isArray(methods)) {
+                    return false;
+                }
+                var param = methods.find(method => method.name === paramName);
+                if (typeof param === 'undefined') {
+                    return false;
+                }
+                var paramValue = param.value;
+                if (subParamName && (typeof paramValue === 'undefined' || typeof paramValue[subParamName] === 'undefined')) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
     function APIContainer(options) {
         /**
          * processor 创建方法集合
@@ -927,16 +951,20 @@
             /**
              * 生成一个对象，其上的方法是 API 容器对象中调用描述对象编译成的，可被直接调用的函数
              *
-             * @param {Object|Function} mapAPI 调用描述对象名称的映射表或映射函数
+             * @param {Object|Function} [mapAPI] 调用描述对象名称的映射表或映射函数
+             * @param {Object} [options] 配置参数
+             * @param {boolean} [options.withCanIUse] 是否添加canIUse方法, 默认为 false
              * @return {Object}
              */
-            map: function (mapAPI) {
+            map: function (mapAPI, options) {
+                options = options || {};
+                var withCanIUse = typeof options.withCanIUse === 'undefined' ? false : !!options.withCanIUse;
                 mapAPI = mapAPI || function (name) {
                     return name;
                 };
 
                 var apiObject = {};
-
+                var apiNameToApiMap = {};
 
                 for (var i = 0; i < this.apis.length; i++) {
                     var api = this.apis[i];
@@ -963,7 +991,15 @@
                         else {
                             apiObject[apiName] = buildAPIMethod(api, this);
                         }
+                        apiNameToApiMap[apiName] = api;
                     }
+                }
+
+                if (withCanIUse) {
+                    if (typeof apiObject['canIUse'] !== 'undefined') {
+                        throw new Error('canIUse has exist, use .map(someMap, {withCanIUse: false}) to disable map add canIUse method.')
+                    }
+                    apiObject['canIUse'] = buildCanIUse(apiNameToApiMap);
                 }
 
                 return apiObject;
