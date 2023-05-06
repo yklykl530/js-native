@@ -24,6 +24,17 @@
     }
 
     /**
+     * 判断是否是对象
+     *
+     * @inner
+     * @param {*} target 检测目标
+     * @return {Boolean}
+     */
+    function isObject(target) {
+        return Object.prototype.toString.call(target).toLocaleLowerCase() === '[object object]'
+    }
+
+    /**
      * 返回原值的方法，调用过程的兜底处理函数
      *
      * @inner
@@ -616,30 +627,40 @@
 
         }
     }
-
+    
     function buildCanIUse(apiNameToApiMap) {
         return function (apiName, argsName = 'args', paramName = null, subParamName = null) {
             var api = apiNameToApiMap[apiName];
             if (!api || !api.invoke) {
                 return false;
             }
+            if (argsName && typeof api[argsName] === 'undefined') {
+                return false;
+            }
             if (argsName && paramName) {
                 var methods = api[argsName]
-                if (!Array.isArray(methods)) {
+                var isMethodArray = Array.isArray(methods);
+                var isMethodObject = isObject(methods);
+                if (!isMethodArray && !isMethodObject) {
                     return false;
-                }
-                var param = methods.find(method => method.name === paramName);
-                if (typeof param === 'undefined') {
+                } else if (isMethodObject && !isObject(methods.type)) {
                     return false;
-                }
-                var paramValue = param.value;
-                if (subParamName && (typeof paramValue === 'undefined' || typeof paramValue[subParamName] === 'undefined')) {
-                    return false;
+                } else {
+                    var param = isMethodArray ? methods.find(method => method.name === paramName) : methods.type[paramName];
+                    if (typeof param === 'undefined') {
+                        return false;
+                    }
+                    var paramValue = isMethodArray ? param.value : param.type;
+                    if (subParamName && (typeof paramValue === 'undefined' || typeof paramValue[subParamName] === 'undefined')) {
+                        return false;
+                    }
                 }
             }
             return true;
         }
     }
+
+    var CAN_I_USE_NAME = 'canIUse';
 
     function APIContainer(options) {
         /**
@@ -996,10 +1017,10 @@
                 }
 
                 if (withCanIUse) {
-                    if (typeof apiObject['canIUse'] !== 'undefined') {
+                    if (typeof apiObject[CAN_I_USE_NAME] !== 'undefined') {
                         throw new Error('canIUse has exist, use .map(someMap, {withCanIUse: false}) to disable map add canIUse method.')
                     }
-                    apiObject['canIUse'] = buildCanIUse(apiNameToApiMap);
+                    apiObject[CAN_I_USE_NAME] = buildCanIUse(apiNameToApiMap);
                 }
 
                 return apiObject;

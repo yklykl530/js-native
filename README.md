@@ -430,13 +430,18 @@ map生成的对象上，类似微信小程序 wx.canIUse 风格的API可用性�
 `参数`
 
 - `{String}` apiName API名称
-- `{String}` [argsName] 检查的参数类型，默认为 args，即检查入参，检查依据为接口描述文件。如果传入其他值，则会在接口描述文件中寻找对应的值定义，定义方式同 args。
-- `{String}` [paramName] 具体需检查的参数名
-- `{String}` [subParamName] 如果paramName对应参数是一个对象，则可以检测这个对象上的键是否可用
+- `{String}` [argsName] 检查的参数类型，默认为 args，即检查入参，检查依据为接口描述文件。如果传入其他值，则会在接口描述中寻找对应值的定义，请见“定义方式”。
+- `{String}` [paramName] 具体需检查的参数名，根据“定义方式”不同，paramName指代不同含义。
+- `{String}` [subParamName] 如果paramName对应参数是一个对象，则可以检测这个对象上的键是否可用。根据“定义方式”不同，subParamName指代不同含义。
 
 `返回`
 
 `{Boolean}` 是否可用结果
+
+`定义方式`
+支持两种定义方式：
+- 数组方式：参照 args，使用数组声明一组参数的定义结构，这时 paramName 指的是数组中name === paramName的项目。当对应项类型为对象时，subParamName为这个对象的key。
+- 单项方式：如果需要定义的数据仅为一项，如函数返回值或只有一个参数的回调函数，则可直接使用单项的定义方式，单项定义方式遵循[值类型系统](doc/description.md#值类型系统)。如果定义的数据是一个对象类型，paramName代表这个对象的对应key。当这个key的值类型为一个对象时，subParamName为这个子对象的key。
 
 `示例`
 
@@ -445,26 +450,42 @@ apis.add({
     invoke: "method",
     name: "ns.api",
     method: "_ns.api",
+    // 数组定义方式
     args: [
         {name: 'one', value: 'number'},
         {name: 'twoObject', value: {
             two: 'number'
-        }}
+        }},
+        {name: 'success', value: 'function'}
     ],
     success: [
         {name: 'res', value: 'number'}
-    ]
+    ],
+    // 单项定义方式
+    return: {
+        type: {
+            res: 'number'
+        }
+    },
+    return2: 'number',
 });
-_ns.api = (one, twoObject) => {
-    return one + twoObject.two;
+
+_ns.api = (one, twoObject, success) => {
+    success(one + twoObject.two)
 };
 let myApi = apis.map(null, {withCanIUse:true});
-myApi.ns.api(100, {two: 200}) // 300
+
+myApi.ns.api(100, {two: 200}, function(res) {console.log(res)}) // 300
 myApi.canIUse('ns.api') // true
 myApi.canIUse('ns.api', 'args', 'one') // true
 myApi.canIUse('ns.api', 'args', 'twoObject', 'two') // true
 myApi.canIUse('ns.api', 'success', 'res') // true
+myApi.canIUse('ns.api', 'return') // true
+myApi.canIUse('ns.api', 'return', 'res') // true
+myApi.canIUse('ns.api', 'return2') // true
+myApi.canIUse('ns.api', 'return2', 'res') // false
 myApi.canIUse('ns.apiNotExist') // false
+myApi.canIUse('ns.api', 'otherArgs', 'otherParams') // false
 myApi.canIUse('ns.api', 'args', 'otherParams') // false
 myApi.canIUse('ns.api', 'args', 'twoObject', 'otherSubParams') // false
 ```
