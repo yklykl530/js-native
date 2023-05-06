@@ -629,6 +629,15 @@
     }
     
     function buildCanIUse(apiNameToApiMap) {
+        /**
+         * 类似微信小程序 wx.canIUse 风格的API可用性检查方法。
+         * 备注：由于apiName部分存在命名空间，所以使用四个参数分割不同schema部分
+         * @param {String} apiName API名称
+         * @param {String} [argsName] 检查的参数类型，默认为 args，即检查入参，检查依据为接口描述文件。如果传入其他值，则会在接口描述中寻找对应值的定义，请见“定义方式”。
+         * @param {String} [paramName] 具体需检查的参数名，根据“定义方式”不同，paramName指代不同含义。
+         * @param {String} [subParamName] 如果paramName对应参数是一个对象，则可以检测这个对象上的键是否可用。根据“定义方式”不同，subParamName指代不同含义。
+         * @returns {Boolean} 是否可用结果
+         */
         return function (apiName, argsName = 'args', paramName = null, subParamName = null) {
             var api = apiNameToApiMap[apiName];
             if (!api || !api.invoke) {
