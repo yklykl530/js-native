@@ -284,6 +284,88 @@ describe('APIContainer', () => {
         expect(value).to.be.equal(250);
     });
 
+    it('map api use withCanIUse option', () => {
+        apis.add({
+            invoke: "method",
+            name: "ns.apiMap9",
+            method: "tAPI.api10",
+            args: []
+        });
+        let myApi = apis.map(null, {withCanIUse:true});
+        expect(myApi.canIUse).to.be.a('function');
+        let myApiWithoutCanIUse = apis.map();
+        expect(myApiWithoutCanIUse.canIUse).to.be.a('undefined');
+    });
+
+    it('map object canIUse api', () => {
+        apis.add({
+            invoke: "method",
+            name: "ns.apiMap10",
+            method: "tAPI.api10",
+            args: [
+                {name: 'one', value: 'number'},
+                {name: 'twoObject', value: {
+                    two: 'number'
+                }}
+            ],
+            success: [
+                {name: 'res', value: 'number'}
+            ],
+            return: {
+                type: {
+                    res: 'number',
+                    sub: {
+                        type: {
+                            resToString: 'string'
+                        }
+                    }
+                }
+            },
+            return2: 'number'
+        });
+        tAPI.api10 = (one, twoObject) => {
+            var res = one + twoObject.two;
+            return {res: res, sub: {
+                resToString: res.toString()
+            }}
+        };
+        let myApi = apis.map(null, {withCanIUse:true});
+        expect(myApi.canIUse('ns.apiMap10')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'one'), 'test args').to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'twoObject', 'two')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'success', 'res')).to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'return'), 'test args with object').to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'return', 'res'), 'test args with object and object key').to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'return', 'sub', 'resToString'), 'test args with object and object key and sub key').to.be.equal(true);
+        expect(myApi.canIUse('ns.apiMap10', 'return2'), 'test args with single type').to.be.equal(true);
+        expect(myApi.canIUse('ns.apiNotExist')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'otherMethod', 'twoObject', 'two')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'otherParams')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'args', 'twoObject', 'otherOptions')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'return', 'otherParams')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'return', 'sub', 'otherSubParams')).to.be.equal(false);
+        expect(myApi.canIUse('ns.apiMap10', 'return2', 'noParams'), 'test args with single type, no params').to.be.equal(false);
+
+
+        var apiRes = myApi.ns.apiMap10(100, {two: 200});
+        expect(apiRes.res).to.be.equal(300);
+        expect(apiRes.sub.resToString).to.be.equal('300');
+    });
+
+    it('map api use withCanIUse error', () => {
+        expect(() => {
+            apis.add({
+                invoke: "method",
+                name: "canIUse",
+                method: "tAPI.api10",
+                args: [
+                    {name: 'one', value: 'number'}
+                ]
+            });
+            apis.map(null, {withCanIUse: true});
+        }).to.throw('canIUse has exist');
+    });
+
     it('no invoke property, throw Error', () => {
         apis.add({
             name: "api9",

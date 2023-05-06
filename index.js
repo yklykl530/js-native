@@ -24,6 +24,17 @@
     }
 
     /**
+     * 判断是否是对象
+     *
+     * @inner
+     * @param {*} target 检测目标
+     * @return {Boolean}
+     */
+    function isObject(target) {
+        return Object.prototype.toString.call(target).toLocaleLowerCase() === '[object object]'
+    }
+
+    /**
      * 返回原值的方法，调用过程的兜底处理函数
      *
      * @inner
@@ -543,6 +554,40 @@
     }
 
     
+    
+    function buildCanIUse(apiNameToApiMap) {
+        return function (apiName, argsName = 'args', paramName = null, subParamName = null) {
+            var api = apiNameToApiMap[apiName];
+            if (!api || !api.invoke) {
+                return false;
+            }
+            if (argsName && typeof api[argsName] === 'undefined') {
+                return false;
+            }
+            if (argsName && paramName) {
+                var methods = api[argsName]
+                var isMethodArray = Array.isArray(methods);
+                var isMethodObject = isObject(methods);
+                if (!isMethodArray && !isMethodObject) {
+                    return false;
+                } else if (isMethodObject && !isObject(methods.type)) {
+                    return false;
+                } else {
+                    var param = isMethodArray ? methods.find(method => method.name === paramName) : methods.type[paramName];
+                    if (typeof param === 'undefined') {
+                        return false;
+                    }
+                    var paramValue = isMethodArray ? param.value : param.type;
+                    if (subParamName && (typeof paramValue === 'undefined' || typeof paramValue[subParamName] === 'undefined')) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    var CAN_I_USE_NAME = 'canIUse';
 
     function APIContainer(options) {
 
@@ -862,16 +907,20 @@
             /**
              * 生成一个对象，其上的方法是 API 容器对象中调用描述对象编译成的，可被直接调用的函数
              *
-             * @param {Object|Function} mapAPI 调用描述对象名称的映射表或映射函数
+             * @param {Object|Function} [mapAPI] 调用描述对象名称的映射表或映射函数
+             * @param {Object} [options] 配置参数
+             * @param {boolean} [options.withCanIUse] 是否添加canIUse方法, 默认为 false
              * @return {Object}
              */
-            map: function (mapAPI) {
+            map: function (mapAPI, options) {
+                options = options || {};
+                var withCanIUse = typeof options.withCanIUse === 'undefined' ? false : !!options.withCanIUse;
                 mapAPI = mapAPI || function (name) {
                     return name;
                 };
 
                 var apiObject = {};
-
+                var apiNameToApiMap = {};
 
                 for (var i = 0; i < this.apis.length; i++) {
                     var api = this.apis[i];
@@ -898,7 +947,15 @@
                         else {
                             apiObject[apiName] = buildAPIMethod(api, this);
                         }
+                        apiNameToApiMap[apiName] = api;
                     }
+                }
+
+                if (withCanIUse) {
+                    if (typeof apiObject[CAN_I_USE_NAME] !== 'undefined') {
+                        throw new Error('canIUse has exist, use .map(someMap, {withCanIUse: false}) to disable map add canIUse method.')
+                    }
+                    apiObject[CAN_I_USE_NAME] = buildCanIUse(apiNameToApiMap);
                 }
 
                 return apiObject;
